@@ -7,7 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
-using CoreApi.Data;
+using System.Reflection;
+using Core.Data;
+using AutoMapper;
+using CoreApi.Util;
 
 namespace CoreApi
 {
@@ -23,10 +26,15 @@ namespace CoreApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            var dbConnection = Configuration["MySQLConnection:ConnectionString"];
+            var migrationAssembly = typeof(Startup)
+                                    .GetTypeInfo().Assembly.GetName().Name;
 
-            services.AddDbContext<DataContext>(opt => opt.UseMySql(dbConnection));
-            services.AddScoped<DataContext, DataContext>();
+            services.AddDbContext<Contexto>(opt =>
+            {
+                opt.UseMySql(Configuration.GetConnectionString("Default"), sql => sql.MigrationsAssembly(migrationAssembly));
+            });
+
+            services.AddScoped<Contexto, Contexto>();
 
             services.AddControllersWithViews();
 
@@ -35,6 +43,15 @@ namespace CoreApi
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "core_api", Version = "v1" });
             });
+
+            var mappConfig = new MapperConfiguration(mc =>
+            {
+                mc.AddProfile(new MapperProfile());
+            });
+
+            IMapper mapper = mappConfig.CreateMapper();
+
+            services.AddSingleton(mapper);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
